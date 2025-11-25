@@ -59,62 +59,117 @@ def reset_states():
     control_state.update({'red_light':False,'green_light':False,'ready':False})
 
 # --- Built-in Tests ---
-def run_tests():
-    print("Running RLS Tests...\n")
-    
+def run_tests(tester_name=None, execution_time=None):
+    print("========================================")
+    print("        RLS TEST EXECUTION REPORT       ")
+    print("========================================")
+
+    # Handle defaults if not provided
+    if tester_name is None:
+        tester_name = "UNKNOWN_TESTER"
+    if execution_time is None:
+        execution_time = datetime.now()
+
+    print(f"Executed by: {tester_name}")
+    print(f"Execution time: {execution_time}")
+    print("========================================\n")
+
+    # Test numbering
+    test_number = 1
+
+    def record_test(description, expected, actual):
+        nonlocal test_number
+        test_id = f"TC-{test_number:02d}"
+        test_number += 1
+
+        result = "PASS" if expected == actual else "FAIL"
+
+        print(f"Test Case: {test_id}")
+        print(f"Description: {description}")
+        print(f"Expected: {expected}")
+        print(f"Actual:   {actual}")
+        print(f"Result:   {result}")
+        print("----------------------------------------\n")
+
+    # --- Test Cases ---
+
     reset_states()
     result = pad_test(100, 'CLOSED')
-    print("Pad Test Success:", "PASS" if result == "READY" else "FAIL")
-    
+    record_test("Pad passes test with 100% battery and CLOSED circuit",
+                "READY", result)
+
     reset_states()
     result = pad_test(50, 'OPEN')
-    print("Pad Test Fail:", "PASS" if result == "TEST_FAIL" else "FAIL")
-    
+    record_test("Pad fails test with low battery and OPEN circuit",
+                "TEST_FAIL", result)
+
     reset_states()
     pad_test(100, 'CLOSED')
     result = pad_enable()
-    print("Pad Enable Success:", "PASS" if result == "ENABLED" else "FAIL")
-    
+    record_test("Pad successfully enables after ready state",
+                "ENABLED", result)
+
     reset_states()
     result = pad_enable()
-    print("Pad Enable Blocked:", "PASS" if result == "BLOCKED" else "FAIL")
-    
+    record_test("Pad enable blocked when green_light is False",
+                "BLOCKED", result)
+
     reset_states()
     pad_test(100, 'CLOSED')
     pad_enable()
     result = control_ready()
-    print("Control Ready Success:", "PASS" if result == "READY_ACK" else "FAIL")
-    
+    record_test("Control ready succeeds when pad is enabled",
+                "READY_ACK", result)
+
     reset_states()
     result = control_ready()
-    print("Control Ready Fail:", "PASS" if result == "COMM_ERROR" else "FAIL")
-    
+    record_test("Control ready fails when pad not enabled",
+                "COMM_ERROR", result)
+
     reset_states()
     pad_test(100, 'CLOSED')
     pad_enable()
     control_ready()
     result = control_launch()
-    print("Control Launch Success:", "PASS" if result == "LAUNCH_SUCCESS" else "FAIL")
-    
+    record_test("Launch succeeds when pad enabled and control ready",
+                "LAUNCH_SUCCESS", result)
+
     reset_states()
     result = control_launch()
-    print("Control Launch Fail:", "PASS" if result == "LAUNCH_FAIL" else "FAIL")
-    
-    print("\nAll tests completed.")
+    record_test("Launch fails when pad disabled or control not ready",
+                "LAUNCH_FAIL", result)
+
+    print("All tests completed.")
 
 # --- Main Command-Line Interface ---
 if __name__ == "__main__":
     import argparse
+    from datetime import datetime
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--unit', choices=['pad','control'])
     parser.add_argument('--action', choices=['test','enable','ready','launch'])
     parser.add_argument('--battery', type=int, default=100)
     parser.add_argument('--circuit', choices=['OPEN','CLOSED'], default='CLOSED')
     parser.add_argument('--run-tests', action='store_true', help='Run internal tests')
+
     args = parser.parse_args()
-    
+
+    # --- If running test report execution ---
     if args.run_tests:
-        run_tests()
+        # Ask tester for their first name
+        tester_name = input("Enter your first name (tester): ").strip()
+
+        # Capture execution timestamp
+        execution_time = datetime.now()
+
+        # Pass into test suite
+        run_tests(
+            tester_name=tester_name,
+            execution_time=execution_time
+        )
+
+    # --- Normal CLI mode ---
     else:
         if args.unit == 'pad':
             if args.action == 'test':
@@ -130,3 +185,4 @@ if __name__ == "__main__":
             elif args.action == 'launch':
                 status = control_launch()
                 print(f"Control Launch: {status}, Green Light: {control_state['green_light']}")
+
